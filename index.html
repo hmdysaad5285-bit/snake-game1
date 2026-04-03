@@ -2,121 +2,155 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>لعبة السلم والثعبان</title>
-<link rel="manifest" href="manifest.json">
+<title>Snake & Ladders Pro</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body {
-  margin:0;
-  font-family:Arial;
-  background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
-  color:white;
-  text-align:center;
+body{
+ margin:0;
+ font-family:Arial;
+ background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+ color:white;
+ text-align:center;
+ overflow:hidden;
 }
 
-h2 { margin:10px; }
-
-#container {
-  display:flex;
-  justify-content:center;
-  gap:20px;
+/* شاشة البداية */
+#menu{
+ position:fixed;
+ width:100%;
+ height:100%;
+ background:#000;
+ display:flex;
+ flex-direction:column;
+ justify-content:center;
+ align-items:center;
 }
 
-canvas {
-  background:white;
-  border-radius:15px;
-  box-shadow:0 0 20px black;
+#menu h1{
+ font-size:40px;
+ margin-bottom:20px;
 }
 
-#panel {
-  display:flex;
-  flex-direction:column;
-  gap:15px;
+button{
+ padding:12px 25px;
+ font-size:18px;
+ border:none;
+ border-radius:12px;
+ background:#ff9800;
+ color:white;
+ cursor:pointer;
+ margin:5px;
 }
 
-#dice {
-  width:80px;
-  height:80px;
-  font-size:40px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:white;
-  color:black;
-  border-radius:15px;
+/* اللعبة */
+#game{ display:none; }
+
+canvas{
+ background:#fff;
+ border-radius:15px;
+ margin-top:10px;
+ box-shadow:0 0 20px black;
 }
 
-button {
-  padding:10px;
-  font-size:18px;
-  border:none;
-  border-radius:10px;
-  background:#ff5722;
-  color:white;
-  cursor:pointer;
+/* النرد */
+#dice{
+ width:80px;
+ height:80px;
+ font-size:40px;
+ background:white;
+ color:black;
+ display:flex;
+ justify-content:center;
+ align-items:center;
+ border-radius:12px;
+ margin:10px auto;
+ transition:0.2s;
 }
 
-#winner {
-  position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  background:rgba(0,0,0,0.8);
-  display:none;
-  align-items:center;
-  justify-content:center;
-  flex-direction:column;
+/* الفوز */
+#winner{
+ position:fixed;
+ width:100%;
+ height:100%;
+ background:rgba(0,0,0,0.9);
+ display:none;
+ justify-content:center;
+ align-items:center;
+ flex-direction:column;
+}
+
+/* تأثير فلاش */
+.flash{
+ animation:flash 0.5s;
+}
+
+@keyframes flash{
+ 0%{background:white;}
+ 50%{background:yellow;}
+ 100%{background:white;}
 }
 </style>
 </head>
 
 <body>
 
-<h2>🎲 لعبة السلم والثعبان</h2>
+<!-- القائمة -->
+<div id="menu">
+<h1>🎲 Snake & Ladders</h1>
+<button onclick="startGame()">▶️ ابدأ اللعب</button>
+</div>
 
-<div id="container">
+<!-- اللعبة -->
+<div id="game">
 <canvas id="board" width="500" height="500"></canvas>
-
-<div id="panel">
 <div id="dice">🎲</div>
-<button onclick="rollDice()">رمي النرد</button>
-<div id="status"></div>
-</div>
+<button onclick="rollDice()">🎲 رمي النرد</button>
+<p id="status"></p>
 </div>
 
+<!-- الفوز -->
 <div id="winner">
 <h1 id="winnerText"></h1>
-<button onclick="restart()">إعادة اللعب</button>
+<button onclick="restart()">🔄 إعادة اللعب</button>
 </div>
+
+<!-- أصوات -->
+<audio id="diceSound" src="https://www.soundjay.com/button/button-16.mp3"></audio>
+<audio id="winSound" src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3"></audio>
 
 <script>
 const canvas=document.getElementById("board");
 const ctx=canvas.getContext("2d");
 
-const size=10;
-const cell=50;
-
 let players=[1,1];
 let current=0;
 let moving=false;
 
+/* AI لاعب */
+let vsAI=true;
+
 const snakes={16:6,47:26,49:11,56:53,62:19,87:24,93:73,98:78};
 const ladders={2:38,7:14,8:31,15:26,21:42,28:84,36:44,51:67,71:91};
 
-function drawBoard(){
+function startGame(){
+ document.getElementById("menu").style.display="none";
+ document.getElementById("game").style.display="block";
+ draw();
+}
+
+function draw(){
  ctx.clearRect(0,0,500,500);
 
  for(let r=0;r<10;r++){
   for(let c=0;c<10;c++){
    ctx.fillStyle=(r+c)%2?"#c8e6c9":"#fff";
-   ctx.fillRect(c*cell,r*cell,cell,cell);
-   ctx.strokeRect(c*cell,r*cell,cell,cell);
+   ctx.fillRect(c*50,r*50,50,50);
+   ctx.strokeRect(c*50,r*50,50,50);
   }
  }
 
- drawLines();
+ drawPlayers();
 }
 
 function getPos(n){
@@ -136,65 +170,75 @@ function drawPlayers(){
  });
 }
 
-function drawLines(){
- ctx.lineWidth=5;
-
- ctx.strokeStyle="green";
- for(let k in ladders){
-  let a=getPos(k),b=getPos(ladders[k]);
-  ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
- }
-
- ctx.strokeStyle="red";
- for(let k in snakes){
-  let a=getPos(k),b=getPos(snakes[k]);
-  ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
- }
-}
-
-function animate(p,steps,cb){
- if(steps==0){cb();return;}
+/* حركة */
+function animateMove(p,steps,cb){
+ if(steps===0){cb();return;}
  players[p]++;
- drawBoard();drawPlayers();
- setTimeout(()=>animate(p,steps-1,cb),200);
+ draw();
+ setTimeout(()=>animateMove(p,steps-1,cb),120);
 }
 
+/* النرد */
 function rollDice(){
  if(moving) return;
  moving=true;
 
+ let dice=document.getElementById("dice");
+
+ dice.classList.add("flash");
+ setTimeout(()=>dice.classList.remove("flash"),300);
+
  let roll=Math.floor(Math.random()*6)+1;
- document.getElementById("dice").innerText=roll;
+ dice.innerText=roll;
 
- if(players[current]+roll>100){moving=false;return;}
+ document.getElementById("diceSound").play();
 
- animate(current,roll,()=>{
+ if(players[current]+roll>100){moving=false;nextTurn();return;}
+
+ animateMove(current,roll,()=>{
   let pos=players[current];
 
-  if(snakes[pos]) players[current]=snakes[pos];
-  if(ladders[pos]) players[current]=ladders[pos];
+  if(snakes[pos]){
+    players[current]=snakes[pos];
+  }
+  if(ladders[pos]){
+    players[current]=ladders[pos];
+  }
 
-  if(players[current]==100){
-    document.getElementById("winner").style.display="flex";
-    document.getElementById("winnerText").innerText="🏆 اللاعب "+(current+1)+" فاز!";
+  if(players[current]===100){
+    win();
     return;
   }
 
-  current=(current+1)%2;
-  moving=false;
-  drawBoard();drawPlayers();
+  nextTurn();
  });
 }
 
+/* الدور */
+function nextTurn(){
+ current=(current+1)%2;
+ moving=false;
+ draw();
+
+ if(vsAI && current===1){
+   setTimeout(rollDice,700);
+ }
+}
+
+/* الفوز */
+function win(){
+ document.getElementById("winner").style.display="flex";
+ document.getElementById("winnerText").innerText="🏆 اللاعب "+(current+1)+" فاز!";
+ document.getElementById("winSound").play();
+}
+
+/* إعادة */
 function restart(){
  players=[1,1];
  current=0;
  document.getElementById("winner").style.display="none";
- drawBoard();drawPlayers();
+ draw();
 }
-
-drawBoard();
-drawPlayers();
 </script>
 
 </body>
